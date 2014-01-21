@@ -130,7 +130,7 @@ class PasteFormatted(sublime_plugin.TextCommand):
 
 
 		if removeBullets: # Remove preceeding bullets sometimes created by Word/Excel
-			clipboard = re.sub(r'•\s+', '', clipboard)
+			clipboard = re.sub(r'•\s*', '', clipboard)
 
 		if escapeHTML: # Escape HTML entities where applicable
 			clipboard = html.escape(clipboard, escapeQuotes)
