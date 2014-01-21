@@ -119,6 +119,7 @@ class PasteFormatted(sublime_plugin.TextCommand):
 			clipboard = re.sub(r'([^ \]()\[{}])([\[({])', r'\1 \2', clipboard) # Add spaces before brackets
 			clipboard = re.sub(r'([\[({])\s+', r'\1', clipboard) # Remove spaces at start of bracket
 			clipboard = re.sub(r'\s+([\])}])\s*', r'\1', clipboard) # Remove spaces before the end of a bracket
+			# \p{L}\p{M}* represents a single Unicode letter character
 			clipboard = re.sub(r'([\])}])(\p{L}\p{M}*|[\w-])', r'\1 \2', clipboard) # Add a space before a word character and a closing bracket
 
 		if cleanPunctuation:
