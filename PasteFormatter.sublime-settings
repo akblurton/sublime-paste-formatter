@@ -10,6 +10,7 @@
 		"registered_tm" : true,
 		"nltobr" : false,
 		"allow_custom" : true,
-		"clean_brackets" : true
+		"clean_brackets" : true,
+		"clean_punctuation" : true
 	}
 }

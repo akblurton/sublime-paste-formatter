@@ -11,7 +11,8 @@ FORMATTER_OPTIONS = [
 	"escape_quotes",
 	"registered_tm",
 	"nltobr",
-	"allow_custom"
+	"allow_custom",
+	"clean_punctuation"
 ]
 
 FORMATTER_TOGGLE_STATEMENTS = {
@@ -20,6 +21,7 @@ FORMATTER_TOGGLE_STATEMENTS = {
 	"clean_whitespace" : "whitespace cleanup",
 	"clean_linebreaks" : "linebreak cleanup",
 	"clean_brackets" : "bracket cleanup",
+	"clean_punctuation" : "punctuation cleanup",
 	"remove_bullets" : "bullet point removal",
 	"escape_html" : "html escaping",
 	"escape_quotes" : "quote escaping",
@@ -93,6 +95,7 @@ class PasteFormatted(sublime_plugin.TextCommand):
 		cleanWhitespace = formatter.get("clean_whitespace")
 		cleanLinebreaks = formatter.get("clean_linebreaks")
 		cleanBrackets = formatter.get("clean_brackets")
+		cleanPunctuation = formatter.get("clean_punctuation")
 		removeBullets = formatter.get("remove_bullets")
 		escapeHTML = formatter.get("escape_html")
 		escapeQuotes = formatter.get("escape_quotes")
@@ -116,7 +119,14 @@ class PasteFormatted(sublime_plugin.TextCommand):
 			clipboard = re.sub(r'([^ \]()\[{}])([\[({])', r'\1 \2', clipboard) # Add spaces before brackets
 			clipboard = re.sub(r'([\[({])\s+', r'\1', clipboard) # Remove spaces at start of bracket
 			clipboard = re.sub(r'\s+([\])}])\s*', r'\1', clipboard) # Remove spaces before the end of a bracket
-			clipboard = re.sub(r'([\])}])([\w-])', r'\1 \2', clipboard) # Add a space before a word character and a closing bracket
+			clipboard = re.sub(r'([\])}])(\p{L}\p{M}*|[\w-])', r'\1 \2', clipboard) # Add a space before a word character and a closing bracket
+
+		if cleanPunctuation:
+			clipboard = re.sub(r'\s*([!?/;:\.,])', r'\1', clipboard) #Remove spaces before punctuation
+			clipboard = re.sub(r'(?<![0-9])([!?/;:\.,])([^!?/;:\.,])', r'\1 \2', clipboard) #Add spaces after punctuation
+			clipboard = re.sub(r'(?=<[0-9])([!?/;:\.,])([^!?/;:\.,0-9])', r'\1 \2', clipboard) #Different rules for numbers
+			clipboard = re.sub(r'([¿¡]) +', r'\1', clipboard); #Clean spaces on spanish punctuation
+
 
 		if removeBullets: # Remove preceeding bullets sometimes created by Word/Excel
 			clipboard = re.sub(r'•\s+', '', clipboard)

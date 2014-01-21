@@ -7,6 +7,7 @@
 	{ "caption": "Paste Formatter: Toggle whitespace clean-up", "command": "paste_formatted", "args": { "toggle" : "clean_whitespace"} },
 	{ "caption": "Paste Formatter: Toggle line break clean-up", "command": "paste_formatted", "args": { "toggle" : "clean_linebreaks"} },
 	{ "caption": "Paste Formatter: Toggle bracket clean-up", "command": "paste_formatted", "args": { "toggle" : "clean_brackets"} },
+	{ "caption": "Paste Formatter: Toggle punctuation clean-up", "command": "paste_formatted", "args": { "toggle" : "clean_punctuation"} },
 	{ "caption": "Paste Formatter: Toggle bullet point removal", "command": "paste_formatted", "args": { "toggle" : "remove_bullets"} },
 	{ "caption": "Paste Formatter: Toggle html escaping", "command": "paste_formatted", "args": { "toggle" : "escape_html"} },
 	{ "caption": "Paste Formatter: Toggle quote escaping", "command": "paste_formatted", "args": { "toggle" : "escape_quotes"} },
