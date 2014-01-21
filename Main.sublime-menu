@@ -1,0 +1,42 @@
+[
+	{
+		"caption": "Edit",
+        "mnemonic": "E",
+        "id": "edit",
+		"children" : [
+			{ "caption": "-", "id": "clipboard" },
+			{"caption": "Paste formatted", "command": "paste_formatted"},
+			{ "caption": "-"}
+		]
+	},
+	{
+		"id": "preferences",
+		"children": [
+			{
+				"caption": "Package Settings",
+				"id": "package-settings",
+				"children" : [
+					{
+						"caption" : "Paste Formatter",
+						"children" : [
+							{
+								"caption" : "Settings – Default",
+								"command" : "open_file",
+								"args" : {
+									"file" : "${packages}/PasteFormatter/PasteFormatter.sublime-settings"
+								}
+							},
+							{
+								"caption" : "Settings – User",
+								"command" : "open_file",
+								"args" : { 
+									"file" : "${packages}/User/PasteFormatter.sublime-settings"
+								}
+							}
+						]
+					}
+				]
+			}
+		]
+	}
+]

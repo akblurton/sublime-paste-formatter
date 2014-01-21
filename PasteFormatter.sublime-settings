@@ -1,0 +1,15 @@
+{
+	"paste_formatter" : {
+		"trim" : true,
+		"photoshop" : true,
+		"clean_whitespace" : true,
+		"clean_linebreaks" : true,
+		"remove_bullets" : true,
+		"escape_html" : true,
+		"escape_quotes" : false,
+		"registered_tm" : true,
+		"nltobr" : false,
+		"allow_custom" : true,
+		"clean_brackets" : true
+	}
+}
