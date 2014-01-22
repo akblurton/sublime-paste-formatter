@@ -1,4 +1,11 @@
 [{
 	"keys": ["super+alt+v"],
 	"command" : "paste_formatted"
+},
+{
+	"keys": ["super+alt+ctrl+v"],
+	"command" : "paste_formatted",
+	"args" : {
+		"html" : true
+	}
 }]

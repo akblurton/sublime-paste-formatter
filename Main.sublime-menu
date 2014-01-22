@@ -6,6 +6,7 @@
 		"children" : [
 			{ "caption": "-", "id": "clipboard" },
 			{"caption": "Paste formatted", "command": "paste_formatted"},
+			{"caption": "Paste formatted HTML", "command": "paste_formatted", "args" : {"html" : true}},
 			{ "caption": "-"}
 		]
 	},

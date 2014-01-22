@@ -1,4 +1,6 @@
-import sublime, sublime_plugin, sys, re, html
+
+import sublime, sublime_plugin, sys, re, html, subprocess, os
+
 
 FORMATTER_OPTIONS = [
 	"trim",
@@ -70,11 +72,37 @@ class PasteFormatted(sublime_plugin.TextCommand):
 		sublime.active_window().show_quick_panel(options, self.adjust_setting, 0, startIndex)
 
 	def run(self, edit, **args): #Paste with formatting
+
 		if 'toggle' in args:
 			self.toggle_setting(args['toggle'])
 			return
 
+		htmlParsed = False
+		if "html" in args and args ["html"] is True:
+			proc = subprocess.Popen([os.path.dirname (__file__) + "/html_clipboard"], stdout=subprocess.PIPE)
+			output, err = proc.communicate()
+
+			if proc.returncode is 0:
+				output = output.decode("utf-8")
+				preBody = re.compile (r'^.*<body.*?>', re.I | re.S)
+				postBody = re.compile (r'</body.*?>.*$', re.I | re.S)
+				okayTags = re.compile (r'<(?!/?(strong|b|i|em|sup|sub))[^>]*>', re.I)
+				stripStyle = re.compile (r'<style.*?>[^<]</style>', re.I)
+				removeAttr = re.compile (r'<([A-Z]+)[^>]*?>', re.I)
+				simplify = re.compile (r'</([A-Z]+)>\s*<\1>', re.I) #Removes instances of things like &lt;/sup&gt;&lt;sup&gt;
+				output = preBody.sub('', output)
+				output = postBody.sub('', output)
+				output = stripStyle.sub('', output)
+				output = okayTags.sub(r'', output)
+				output = removeAttr.sub(r'<\1>', output)
+				output = simplify.sub(r'', output)
+				output = re.sub(r'^\s+', '', output)
+				output = re.sub(r'\s+$', '', output)
+				htmlParsed = output
+
 		clipboard = sublime.get_clipboard()
+		if htmlParsed:
+			clipboard = htmlParsed
 
 		# Get settings file
 		settings = sublime.load_settings('PasteFormatter.sublime-settings')
@@ -132,7 +160,7 @@ class PasteFormatted(sublime_plugin.TextCommand):
 		if removeBullets: # Remove preceeding bullets sometimes created by Word/Excel
 			clipboard = re.sub(r'•\s*', '', clipboard)
 
-		if escapeHTML: # Escape HTML entities where applicable
+		if escapeHTML and not htmlParsed: # Escape HTML entities where applicable
 			clipboard = html.escape(clipboard, escapeQuotes)
 
 		if autoSup: # Auto-magically superscript ® symbols
@@ -153,17 +181,19 @@ class PasteFormatted(sublime_plugin.TextCommand):
 
 		for region in self.view.sel():
 			clip = clipboard
-			clip = self.execute_custom(clip, customFormatter, min(region.a, region.b))
+			clip = self.execute_custom(clip, customFormatter, min(region.a, region.b), bool(htmlParsed))
 			self.view.replace(edit, region, clip)
 
-	def execute_custom(self, clipboard, formatters, point): #Runs custom formatters
+	def execute_custom(self, clipboard, formatters, point, isHTML): #Runs custom formatters
 		ran = []
-
 		for f in formatters:
 			if not isinstance(f, dict):
 				continue
 			
 			if not "find" in f or not "replace" in f:
+				continue
+
+			if "mode" in f and ((f["mode"] == "html" and not isHTML) or (f["mode"] == "plain" and isHTML)):
 				continue
 
 			if "id" in f and "id" in ran:
