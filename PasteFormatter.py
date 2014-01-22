@@ -265,12 +265,21 @@ class PasteFormatted(sublime_plugin.TextCommand):
 		# For each region run any custom formatters and then insert the formatted clipboard contents
 		for region in self.view.sel():
 			clip = clipboard
+
+			# Determine current indent
+			line = self.view.lines(region)
+			line = line[-1]
+			m = re.match(r'^([ \t]*)', self.view.substr(line))
+			tabs = m.group(0)
+
 			clip = self.execute_custom(clip, customFormatter, min(region.a, region.b), bool(htmlParsed))
+			clip = clip.replace('\n', '\n' + tabs)
 			self.view.replace(edit, region, clip)
 
 		# Place the cursor at the end of each paste (rather than having the new content selected)
 		regions = []
 		for region in self.view.sel():
+
 			region.a = region.b = max(region.a, region.b)
 			regions.append(region)
 
