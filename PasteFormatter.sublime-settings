@@ -12,5 +12,15 @@
 		"allow_custom" : true,
 		"clean_brackets" : true,
 		"clean_punctuation" : true
-	}
+	},
+	"paste_html_formatter":
+	{
+		"use_strong": true,
+		"use_em": true,
+		"allowed_tags": true,
+		"remove_preceeding_whitespace": true,
+		"remove_linebreak": true,
+		"remove_wrap" : true
+	},
+	"paste_formatter_custom": []
 }
