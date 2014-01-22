@@ -132,10 +132,8 @@ class PasteFormatted(sublime_plugin.TextCommand):
 		output = re.sub(r'^\s+', '', output)
 		output = re.sub(r'\s+$', '', output)
 
-
-
-
-		output = output.replace('<br>', '<br>\n')
+		output = re.compile(r'<([A-Z]+)[^>]*>(\s|&nbsp;)*</\1>', re.I).sub('', output)
+		output = output.replace('<br>', '\n')
 
 		if html_formatter.get("trim_lines"):
 			output = re.compile(r'^(\s|&nbsp;)+', re.M).sub('', output)
