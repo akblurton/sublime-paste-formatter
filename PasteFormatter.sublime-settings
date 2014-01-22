@@ -20,7 +20,8 @@
 		"allowed_tags": true,
 		"remove_preceeding_whitespace": true,
 		"remove_linebreak": true,
-		"remove_wrap" : true
+		"remove_wrap" : true,
+		"add_li" : true
 	},
 	"paste_formatter_custom": []
 }

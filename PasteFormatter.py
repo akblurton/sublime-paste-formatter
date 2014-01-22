@@ -130,6 +130,9 @@ class PasteFormatted(sublime_plugin.TextCommand):
 		if html_formatter.get("remove_wrap"):
 			output = re.sub(r'\n\r?(?![•o·])', ' ', output)
 
+		if html_formatter.get("add_li"):
+			output = re.compile(r'^\s*[•o·](?:\s|&nbsp;)*(.*?)$', re.M | re.I).sub(r'<li>\1</li>', output)
+
 		return output
 
 	def is_visible(self, **args):
