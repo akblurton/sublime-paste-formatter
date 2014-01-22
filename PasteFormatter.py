@@ -1,5 +1,5 @@
 
-import sublime, sublime_plugin, sys, re, html, subprocess, os
+import sublime, sublime_plugin, sys, re, html, subprocess, os, sys
 
 
 FORMATTER_OPTIONS = [
@@ -17,105 +17,149 @@ FORMATTER_OPTIONS = [
 	"clean_punctuation"
 ]
 
-FORMATTER_TOGGLE_STATEMENTS = {
-	"trim" : "whitespace trimming",
-	"photoshop" : "photoshop linebreaks",
-	"clean_whitespace" : "whitespace cleanup",
-	"clean_linebreaks" : "linebreak cleanup",
-	"clean_brackets" : "bracket cleanup",
-	"clean_punctuation" : "punctuation cleanup",
-	"remove_bullets" : "bullet point removal",
-	"escape_html" : "html escaping",
-	"escape_quotes" : "quote escaping",
-	"registered_tm" : "® superscripting",
-	"nltobr" : "newline to br tags",
-	"allow_custom" : "custom formatting"
-}
+HTML_FORMATTER_OPTIONS = [
+	"use_strong",
+	"use_em",
+	"allowed_tags",
+	"remove_preceeding_whitespace",
+	"remove_linebreak",
+	"remove_wrap"
+]
+HTML_SUPPORTED_OS = ["darwin"]
 
 
 
 class PasteFormatted(sublime_plugin.TextCommand):
-	editing = ""
-
-	def adjust_setting(self, index):
-		if index is -1 or self.editing is "":
-			self.editing = ""
-			return
-
-		settings = sublime.load_settings('PasteFormatter.sublime-settings')
-		formatter = settings.get("paste_formatter")
-		
-		formatter[self.editing] = index is 0
-		settings.set("paste_formatter", formatter)
-		sublime.save_settings('PasteFormatter.sublime-settings')
-
-		self.editing = ""
-
-
-	def toggle_setting(self, toggle): #Toggle a setting in the user's config
+	def toggle_setting(self, toggle, value): #Toggle a setting in the user's config
 		# Ignore invalid settings
 		if not toggle in FORMATTER_OPTIONS:
 			return
 
-		self.editing = toggle
+		# Load the current settings object and assign the formatter value
+		settings = sublime.load_settings('PasteFormatter.sublime-settings')
+		formatter = settings.get("paste_formatter")		
+		formatter[toggle] = bool(value)
+
+		# Re-assign the formatter object and save
+		settings.set("paste_formatter", formatter)
+		sublime.save_settings('PasteFormatter.sublime-settings')
+
+	# Merge settings between user/default settings file and the current project setting
+	# optionally filtered by valid
+	def merge_settings(self, key, valid = None):
+		settings = sublime.load_settings('PasteFormatter.sublime-settings')
+		projectSettings = sublime.active_window().active_view().settings()
+
+		# The default/user settings object does not contain this key, return None
+		if not settings.has(key):
+			return None
+		# If the project settings does not contain the given key, return the default/user settings object untouched
+		if not projectSettings.has(key):
+			return settings.get(key)
+
+		obj = settings.get(key)
+		pObj = projectSettings.get(key)
+
+		# Only merge when class types are identical
+		if obj.__class__.__name__ != pObj.__class__.__name__:
+			return obj
+
+		# Merge lists, with the project having precedence
+		if isinstance(obj, list):
+			return pObj + obj
+
+		# Merge dictionaries, optionally filtered by valid
+		if isinstance(obj, dict):
+			for key in obj:
+				# Ignore invalid keys
+				if isinstance(valid, list) and key not in valid:
+					continue
+				if key in pObj:
+					obj[key] = pObj[key]
+			return obj
+
+		# None list/dict items will just return the project setting
+		return pObj
+
+	# Retrieve HTML content from the clipboard using external applications
+	def html_from_clipboard(self):
+		platform = sys.platform
+		if platform not in HTML_SUPPORTED_OS: #Only return values for supported operating systems
+			return None
+
+		output = ""
+		# Mac based clipboard grab
+		if platform == "darwin":
+			proc = subprocess.Popen([os.path.dirname (__file__) + "/html_clipboard"], stdout=subprocess.PIPE) #Open the html_clipboard obj-c application
+			output, err = proc.communicate() # Grab the stdout and assign it to output
+
+		# If no output was retrieved or the application failed, return None
+		if not output or proc.returncode is not 0:
+			return None
+
+		html_formatter = self.merge_settings("paste_html_formatter")
+
+		# Clean up the HTML
+		# output is returned as a byte literal and needs converting to utf-8 for processing
+		output = output.decode("utf-8")
+		# remove all content before the body tag
+		preBody = re.compile(r'^.*<body.*?>', re.I | re.S)
+		# remove all content after the body tag
+		postBody = re.compile(r'</body.*?>.*$', re.I | re.S)
+		# strip all tags that are not allowed
+		okayTags = re.compile(r'<(?!/?(strong|b|i|em|sup|sub))[^>]*>', re.I)
+		# remove all style tags and their contents
+		stripStyle = re.compile (r'<style.*?>[^<]</style>', re.I)
+		# remove attributes from tags
+		removeAttr = re.compile (r'<([A-Z]+)[^>]*?>', re.I)
+		# some applications over complicate html (e.g. <tag>word</tag><tag>word</tag>) this reduces them
+		simplify = re.compile (r'</([A-Z]+)>\s*<\1>', re.I)
+
+		# run the regular expressions to clean up output
+		output = preBody.sub('', output)
+		output = postBody.sub('', output)
+		output = stripStyle.sub('', output)
+		output = okayTags.sub(r'', output)
+		output = removeAttr.sub(r'<\1>', output)
+		output = simplify.sub(r'', output)
+		output = re.sub(r'^\s+', '', output)
+		output = re.sub(r'\s+$', '', output)
+
+		# Sometimes the returned HTML is wrapped to a specific line length, this option removes that by detecting a line break and a single space 
+		if html_formatter.get("remove_wrap"):
+			output = re.sub(r'\n\r? ', ' ', output)
+		return output
+
+	def is_visible(self, **args):
+		#Do not display the HTML paste command on unsupported OSes
+		if "html" in args and args["html"] is True and sys.platform not in HTML_SUPPORTED_OS: 
+			return False
+
+		# Disable toggle commands that represent the current formatter value
 		settings = sublime.load_settings('PasteFormatter.sublime-settings')
 		formatter = settings.get("paste_formatter")
-		startIndex = 1
-		if formatter.get(toggle) is False:
-			startIndex = 0
+		if "toggle" in args and "value" in args and args["toggle"] in formatter and formatter[args["toggle"]] is args["value"]:
+			return False
+		return True		
 
-		options = ["Turn " + FORMATTER_TOGGLE_STATEMENTS[toggle] + " on", "Turn " + FORMATTER_TOGGLE_STATEMENTS[toggle] +  " off"]
-		if startIndex == 1:
-			options[0] += " (current)"
-		else:
-			options[1] += " (current)"
-		sublime.active_window().show_quick_panel(options, self.adjust_setting, 0, startIndex)
-
-	def run(self, edit, **args): #Paste with formatting
-
-		if 'toggle' in args:
-			self.toggle_setting(args['toggle'])
+	#Paste with formatting
+	def run(self, edit, **args): 
+		# If toggle is provided, change a setting value and exit
+		if 'toggle' in args and 'value' in args:
+			self.toggle_setting(args['toggle'], args['value'])
 			return
 
+		# Run the HTML parser if html:true is given
 		htmlParsed = False
 		if "html" in args and args ["html"] is True:
-			proc = subprocess.Popen([os.path.dirname (__file__) + "/html_clipboard"], stdout=subprocess.PIPE)
-			output, err = proc.communicate()
-
-			if proc.returncode is 0:
-				output = output.decode("utf-8")
-				preBody = re.compile (r'^.*<body.*?>', re.I | re.S)
-				postBody = re.compile (r'</body.*?>.*$', re.I | re.S)
-				okayTags = re.compile (r'<(?!/?(strong|b|i|em|sup|sub))[^>]*>', re.I)
-				stripStyle = re.compile (r'<style.*?>[^<]</style>', re.I)
-				removeAttr = re.compile (r'<([A-Z]+)[^>]*?>', re.I)
-				simplify = re.compile (r'</([A-Z]+)>\s*<\1>', re.I) #Removes instances of things like &lt;/sup&gt;&lt;sup&gt;
-				output = preBody.sub('', output)
-				output = postBody.sub('', output)
-				output = stripStyle.sub('', output)
-				output = okayTags.sub(r'', output)
-				output = removeAttr.sub(r'<\1>', output)
-				output = simplify.sub(r'', output)
-				output = re.sub(r'^\s+', '', output)
-				output = re.sub(r'\s+$', '', output)
-				htmlParsed = output
+			htmlParsed = self.html_from_clipboard()		
 
 		clipboard = sublime.get_clipboard()
 		if htmlParsed:
 			clipboard = htmlParsed
 
-		# Get settings file
-		settings = sublime.load_settings('PasteFormatter.sublime-settings')
-		projectSettings = sublime.active_window().active_view().settings()
-		formatter = settings.get("paste_formatter")
-
-		# merge project settings
-		if projectSettings.has("paste_formatter"):
-			projectFormatter = projectSettings.get("paste_formatter")
-			for opt in FORMATTER_OPTIONS:
-				if(opt in projectFormatter):
-					formatter[opt] = projectFormatter[opt]
-
+		# Get formatter settings
+		formatter = self.merge_settings("paste_formatter", FORMATTER_OPTIONS)
 
 		# Flags for formatting-
 		trim = formatter.get("trim")
@@ -171,58 +215,78 @@ class PasteFormatted(sublime_plugin.TextCommand):
 
 		customFormatter = []
 		if custom:
-			customFormatter = settings.get("paste_formatter_custom")
-			if not isinstance(customFormatter, list):
+			customFormatter = self.merge_settings("paste_formatter_custom")
+			if not customFormatter:
 				customFormatter = []
 
-			project = projectSettings.get("paste_formatter_custom")
-			if isinstance(project, list):
-				customFormatter = customFormatter + project
-
+		# For each region run any custom formatters and then insert the formatted clipboard contents
 		for region in self.view.sel():
 			clip = clipboard
 			clip = self.execute_custom(clip, customFormatter, min(region.a, region.b), bool(htmlParsed))
 			self.view.replace(edit, region, clip)
 
-	def execute_custom(self, clipboard, formatters, point, isHTML): #Runs custom formatters
+		# Place the cursor at the end of each paste (rather than having the new content selected)
+		regions = []
+		for region in self.view.sel():
+			region.a = region.b = max(region.a, region.b)
+			regions.append(region)
+
+		self.view.sel().clear()
+		self.view.sel().add_all(regions)
+			
+
+	#Runs custom formatters
+	def execute_custom(self, clipboard, formatters, point, isHTML):
 		ran = []
 		for f in formatters:
+			# Each formatter must be a dictionary
 			if not isinstance(f, dict):
 				continue
 			
+			# At minimum a find and replace key need to exist in the formatter definition
 			if not "find" in f or not "replace" in f:
 				continue
 
+			# Ignore any formatters that require a specific paste mode (HTML vs. plain) and do not match the current mode
 			if "mode" in f and ((f["mode"] == "html" and not isHTML) or (f["mode"] == "plain" and isHTML)):
 				continue
 
+			# Ignore if the given ID has already been run by another formatter
 			if "id" in f and "id" in ran:
 				continue
 
+			# Ignore formatters that require a specific scope
 			if "scope" in f and self.view.score_selector(point, f["scope"]) == 0:
 				continue
 
+			# Add the id of this formatter to ran[]
 			if "id" in f:
 				ran.append(f["id"])
 
 			find = f["find"]
 			replace = f["replace"]
 
+			#Get formatter type
 			if "type" in f:
-				t = f["type"] #Get formatter type
+				t = f["type"] 
 			else:
 				t = "text"
 
+			# Text formatters will do a simple string replace
 			if t == "text":
 				clipboard = clipboard.replace(find, replace)
+			# Regex formatters will use the re.sub command
 			elif t == "regex":
 				clipboard = re.sub(find, replace, clipboard)
+			# Eval formatters are more complicated and require returning a lambda function via eval()
 			elif t == "eval":
 				try:
 					print("Pasted formatted: evaluating")
 					clipboard = re.sub(find, eval("lambda m: " + replace), clipboard)
 				except Exception:
-					print("Paste formatted: Eval failed")
+					# Output to the console that a formatter failed to execute
+					print("Paste formatted: Eval failed: ", replace)
+					# Execute prematurely on a failed formatter
 					return clipboard
 
 		return clipboard
