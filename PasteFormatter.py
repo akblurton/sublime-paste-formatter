@@ -125,9 +125,11 @@ class PasteFormatted(sublime_plugin.TextCommand):
 		output = re.sub(r'^\s+', '', output)
 		output = re.sub(r'\s+$', '', output)
 
-		# Sometimes the returned HTML is wrapped to a specific line length, this option removes that by detecting a line break and a single space 
+		# Sometimes the returned HTML is wrapped to a specific line length, this option removes that by detecting a line breaks and removing them
+		# Line breaks are preserved on bullet points
 		if html_formatter.get("remove_wrap"):
-			output = re.sub(r'\n\r? ', ' ', output)
+			output = re.sub(r'\n\r?(?![•o·])', ' ', output)
+
 		return output
 
 	def is_visible(self, **args):
@@ -200,9 +202,12 @@ class PasteFormatted(sublime_plugin.TextCommand):
 			clipboard = re.sub(r'(?=<[0-9])([!?/;:\.,])([^!?/;:\.,0-9])', r'\1 \2', clipboard) #Different rules for numbers
 			clipboard = re.sub(r'([¿¡]) +', r'\1', clipboard); #Clean spaces on spanish punctuation
 
-
 		if removeBullets: # Remove preceeding bullets sometimes created by Word/Excel
-			clipboard = re.sub(r'•\s*', '', clipboard)
+			if htmlParsed: #When parsing HTML, word includes nbsp;
+				clipboard = re.compile(r'^\s*[•o·]((&nbsp;)*|(\s)+)', re.I | re.M).sub('', clipboard)
+			else:
+				clipboard = re.compile(r'^\s*[•o·]\s*', re.M | re.I).sub('', clipboard)
+
 
 		if escapeHTML and not htmlParsed: # Escape HTML entities where applicable
 			clipboard = html.escape(clipboard, escapeQuotes)
