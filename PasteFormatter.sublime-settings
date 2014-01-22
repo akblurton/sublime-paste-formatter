@@ -17,11 +17,22 @@
 	{
 		"use_strong": true,
 		"use_em": true,
-		"allowed_tags": true,
-		"remove_preceeding_whitespace": true,
-		"remove_linebreak": true,
+		"trim_lines": true,
+		"remove_linebreak": false,
 		"remove_wrap" : true,
-		"add_li" : true
+		"add_li" : true,
+		"use_xhtml" : true,
+		"parse_paragraph" : false
 	},
+	"paste_html_allowed_tags" : [
+		"strong",
+		"b",
+		"i",
+		"em",
+		"sup",
+		"sub",
+		"a",
+		"br"
+	],
 	"paste_formatter_custom": []
 }

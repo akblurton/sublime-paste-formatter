@@ -17,14 +17,6 @@ FORMATTER_OPTIONS = [
 	"clean_punctuation"
 ]
 
-HTML_FORMATTER_OPTIONS = [
-	"use_strong",
-	"use_em",
-	"allowed_tags",
-	"remove_preceeding_whitespace",
-	"remove_linebreak",
-	"remove_wrap"
-]
 HTML_SUPPORTED_OS = ["darwin"]
 
 
@@ -98,6 +90,7 @@ class PasteFormatted(sublime_plugin.TextCommand):
 			return None
 
 		html_formatter = self.merge_settings("paste_html_formatter")
+		html_tags = self.merge_settings("paste_html_allowed_tags")
 
 		# Clean up the HTML
 		# output is returned as a byte literal and needs converting to utf-8 for processing
@@ -107,7 +100,7 @@ class PasteFormatted(sublime_plugin.TextCommand):
 		# remove all content after the body tag
 		postBody = re.compile(r'</body.*?>.*$', re.I | re.S)
 		# strip all tags that are not allowed
-		okayTags = re.compile(r'<(?!/?(strong|b|i|em|sup|sub))[^>]*>', re.I)
+		okayTags = re.compile('<(?!/?('+('|'.join(html_tags))+'))[^>]*>', re.I)
 		# remove all style tags and their contents
 		stripStyle = re.compile (r'<style.*?>[^<]</style>', re.I)
 		# remove attributes from tags
@@ -119,19 +112,61 @@ class PasteFormatted(sublime_plugin.TextCommand):
 		output = preBody.sub('', output)
 		output = postBody.sub('', output)
 		output = stripStyle.sub('', output)
+
+		if html_formatter.get("parse_paragraph"):
+			output = re.compile(r'(</p>\s*)+', re.I).sub('<br>', output)
+		else:
+			output = re.compile(r'<((o:)?p).*?>\s*&nbsp;\s*</\1>', re.I).sub('', output)
+
+		# Sometimes the returned HTML is wrapped to a specific line length, this option removes that by detecting a line breaks and removing them
+		# Line breaks are preserved on bullet points
+		if html_formatter.get("remove_wrap"):
+			output = output.replace('\n', ' ');
+			output = output.replace('</p>', '</p>\n')
+			# output = re.sub(r'\n\r?(?![•◦·])', ' ', output)
+
+		output = re.sub(r"<span[^s]+style='mso-list:Ignore'>[o§]", "<span style='mso-list:Ignore'>◦", output)
 		output = okayTags.sub(r'', output)
 		output = removeAttr.sub(r'<\1>', output)
 		output = simplify.sub(r'', output)
 		output = re.sub(r'^\s+', '', output)
 		output = re.sub(r'\s+$', '', output)
 
-		# Sometimes the returned HTML is wrapped to a specific line length, this option removes that by detecting a line breaks and removing them
-		# Line breaks are preserved on bullet points
-		if html_formatter.get("remove_wrap"):
-			output = re.sub(r'\n\r?(?![•o·])', ' ', output)
 
+
+
+		output = output.replace('<br>', '<br>\n')
+
+		if html_formatter.get("trim_lines"):
+			output = re.compile(r'^(\s|&nbsp;)+', re.M).sub('', output)
+			output = re.compile(r'(\s|&nbsp;)+$', re.M).sub('', output)
+
+		# Wrap bulleted lines with an <li> tag
 		if html_formatter.get("add_li"):
-			output = re.compile(r'^\s*[•o·](?:\s|&nbsp;)*(.*?)$', re.M | re.I).sub(r'<li>\1</li>', output)
+			output = re.compile(r'^\s*[•◦·](?:\s|&nbsp;)*(.*?)(<br>)?$', re.M | re.I).sub(r'<li>\1</li>', output)
+
+		# Convert b/strong tags when supplied
+		if "use_strong" in html_formatter:
+			if html_formatter.get("use_strong"):
+				output = re.compile(r'<(/?)b ([^>]*)>', re.I).sub(r'<\1strong\2>', output)
+				output = re.compile(r'<(/?)b>', re.I).sub(r'<\1strong>', output)
+			else:
+				output = re.compile(r'<(/?)strong ([^>]*)>', re.I).sub(r'<\1b\2>', output)
+				output = re.compile(r'<(/?)strong>', re.I).sub(r'<\1b>', output)
+
+		# Convert em/i tags when supplied
+		if "use_em" in html_formatter:
+			if html_formatter.get("use_em"):
+				output = re.compile(r'<(/?)i ([^>]*)>', re.I).sub(r'<\1em\2>', output)
+				output = re.compile(r'<(/?)i>', re.I).sub(r'<\1em>', output)
+			else:
+				output = re.compile(r'<(/?)em ([^>]*)>', re.I).sub(r'<\1i\2>', output)
+				output = re.compile(r'<(/?)em>', re.I).sub(r'<\1i>', output)
+
+		# Enforce lowercase tag names
+		if html_formatter.get("use_xhtml"):
+			output = re.sub(r'</?[A-Za-z]+', lambda m: m.group(0).lower(), output)
+
 
 		return output
 
@@ -207,7 +242,7 @@ class PasteFormatted(sublime_plugin.TextCommand):
 
 		if removeBullets: # Remove preceeding bullets sometimes created by Word/Excel
 			if htmlParsed: #When parsing HTML, word includes nbsp;
-				clipboard = re.compile(r'^\s*[•o·]((&nbsp;)*|(\s)+)', re.I | re.M).sub('', clipboard)
+				clipboard = re.compile(r'^\s*[•◦·]((&nbsp;)*|(\s)+)', re.I | re.M).sub('', clipboard)
 			else:
 				clipboard = re.compile(r'^\s*[•o·]\s*', re.M | re.I).sub('', clipboard)
 
