@@ -110,7 +110,7 @@ class PasteFormatted(sublime_plugin.TextCommand):
 			clipboard = re.sub(r'^\s*(.*?)\s*$', r'\1', clipboard)
 
 		if cleanWhitespace: # Condense multiple spaces/tabs into one single space
-			clipboard = re.sub(r'([ \t]){2,}', r' ', clipboard)
+			clipboard = re.sub(r'([^\S\n]){2,}', r' ', clipboard)
 
 		if cleanLinebreaks: # Condense multiple linebreaks into one
 			clipboard = re.sub(r'[\n\r]{2,}', '\n', clipboard)
