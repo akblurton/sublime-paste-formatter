@@ -136,7 +136,7 @@ class PasteFormatted(sublime_plugin.TextCommand):
 			clipboard = html.escape(clipboard, escapeQuotes)
 
 		if autoSup: # Auto-magically superscript ® symbols
-			clipboard = re.sub(r"(®|&reg;)", r"<sup>\1</sup>", clipboard)
+			clipboard = re.sub(r"(?<!<(sup|SUP)>) *(®|&reg;)", r"<sup>\2</sup>", clipboard)
 
 		if nltobr: # Convert new lines to br tags
 			clipboard = re.sub(r"(\n\r?)", r"<br>\1", clipboard)
